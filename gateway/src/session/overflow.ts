@@ -60,8 +60,15 @@ const CONTEXT_WINDOW_BY_MODEL: Record<string, number> = {
   "openai/o3-mini": 200_000,
 
   // MiniMax
-  "minimax/MiniMax-M3": MINIMAX_MODELS[0].contextWindow,
-  "minimax/MiniMax-M2.7": MINIMAX_MODELS[1].contextWindow,
+  "minimax/": MINIMAX_MODELS[0].contextWindow,
+  ...Object.fromEntries(
+    MINIMAX_MODELS.flatMap((model) =>
+      [model.id, ...model.aliases].map((id) => [`minimax/${id}`, model.contextWindow]),
+    ),
+  ),
+  // Retain limits for explicit legacy configurations.
+  "minimax/MiniMax-M2.7": 204_800,
+  "minimax/minimax-m2.7": 204_800,
 }
 
 export const DEFAULT_THRESHOLD: OverflowThreshold = {
@@ -111,7 +118,7 @@ export function approxTokens(text: string): number {
 export function estimatePartTokens(parts: MessageWithParts["parts"]): number {
   let total = 0
   for (const p of parts) {
-    if (p.type === "text") total += approxTokens(p.text)
+    if (p.type === "text" || p.type === "reasoning") total += approxTokens(p.text)
     if (p.type === "tool") {
       if (p.state.status === "completed") {
         total += approxTokens(p.state.output)

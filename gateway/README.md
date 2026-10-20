@@ -110,21 +110,30 @@ Some settings live in a TOML/JSON config file (path resolved hierarchically like
 
 ### Direct MiniMax provider
 
-The provider registry supports these model IDs:
+The provider registry offers these current models, with Flash first:
 
 | Model | Context window | Input modalities | Thinking |
 |---|---:|---|---|
+| `MiniMax-M3.1-Flash` | 1,000,000 | text, image, video | adaptive only |
 | `MiniMax-M3` | 1,000,000 | text, image, video | adaptive, disabled |
-| `MiniMax-M2.7` | 204,800 | text | always_on |
 
-The registry also carries the published token pricing and cache fields:
+Flash supports up to 524,288 output tokens. Its default reasoning effort is
+`max`; the API also supports `low`, `medium`, `high`, and `xhigh`. The gateway
+uses the API's effort default and enables adaptive thinking for Flash on the
+Anthropic-compatible route. M3 retains each protocol's thinking default.
 
-| Model | Input | Output | Cache read | Cache write |
+The registry carries standard token pricing (USD per million tokens):
+
+| Model / input length | Input | Output | Cache read | Cache write |
 |---|---:|---:|---:|---:|
-| `MiniMax-M3` | 0.60 | 2.40 | 0.12 | N/A |
-| `MiniMax-M2.7` | 0.30 | 1.20 | 0.06 | 0.375 |
+| `MiniMax-M3.1-Flash` | 0.15 | 0.60 | 0.015 | Unknown |
+| `MiniMax-M3`, up to 512k | 0.30 | 1.20 | 0.06 | Unknown |
+| `MiniMax-M3`, above 512k | 0.60 | 2.40 | 0.12 | Unknown |
 
-Prices are USD per million tokens.
+An empty MiniMax model suffix (`minimax/`) selects Flash. Explicit saved IDs,
+including legacy models and custom deployments, are preserved. The planner's
+default provider is unchanged. Model capabilities describe the API; the gateway's
+existing attachment path currently handles images.
 
 Use the provider prefix in the planner configuration:
 
@@ -138,7 +147,7 @@ Use the provider prefix in the planner configuration:
     }
   },
   "agent": {
-    "planner": { "model": "minimax/MiniMax-M3" }
+    "planner": { "model": "minimax/MiniMax-M3.1-Flash" }
   }
 }
 ```
@@ -151,7 +160,8 @@ The regional endpoint map is available through the `region` setting:
 | `cn_zh` | `https://api.minimaxi.com/v1` | `https://api.minimaxi.com/anthropic` |
 
 Set `protocol` to `anthropic` for the Anthropic-compatible adapter. The public
-base is passed directly to the client and must end in `/anthropic`.
+base has `/v1` appended for the AI SDK's `/messages` route. Custom bases already
+ending in `/v1` are accepted unchanged.
 
 Model details and endpoint documentation:
 

@@ -41,6 +41,8 @@ describe("thresholdForModel — model-aware context window resolution", () => {
   })
 
   it("uses the registered MiniMax context windows", () => {
+    expect(thresholdForModel("minimax/MiniMax-M3.1-Flash").contextWindow).toBe(1_000_000)
+    expect(thresholdForModel("minimax/minimax-m3.1-flash").contextWindow).toBe(1_000_000)
     expect(thresholdForModel("minimax/MiniMax-M3").contextWindow).toBe(1_000_000)
     expect(thresholdForModel("minimax/MiniMax-M2.7").contextWindow).toBe(204_800)
   })

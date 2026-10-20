@@ -1,7 +1,8 @@
 import { Context, Effect, Layer } from "effect"
 import { createOpenAI } from "@ai-sdk/openai"
 import { createAnthropic } from "@ai-sdk/anthropic"
-import type { LanguageModel } from "ai"
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
+import { defaultSettingsMiddleware, wrapLanguageModel, type LanguageModel } from "ai"
 import { Service as ConfigService, type Config } from "../config"
 import type { z } from "zod"
 import {
@@ -175,19 +176,31 @@ export const layer = Layer.effect(
         const resolvedModelId = normalizeMiniMaxModelId(modelId)
 
         if (protocol === "anthropic") {
-          const baseURL = providerCfg?.anthropicBaseURL ?? providerCfg?.baseURL ?? endpoints.anthropicBaseURL
-          if (!baseURL.endsWith("/anthropic")) {
-            throw new Error('provider: MiniMax Anthropic baseURL must end with "/anthropic"')
-          }
-          const p = createAnthropic({ apiKey: providerCfg?.apiKey, baseURL })
-          return p(resolvedModelId)
+          const baseURL = (providerCfg?.anthropicBaseURL ?? providerCfg?.baseURL ?? endpoints.anthropicBaseURL).replace(/\/+$/, "")
+          // The AI SDK appends /messages, unlike the native Anthropic SDK.
+          const p = createAnthropic({
+            apiKey: providerCfg?.apiKey,
+            baseURL: baseURL.endsWith("/v1") ? baseURL : `${baseURL}/v1`,
+          })
+          const model = p(resolvedModelId)
+          return resolvedModelId === "MiniMax-M3.1-Flash"
+            ? wrapLanguageModel({
+                model,
+                middleware: defaultSettingsMiddleware({
+                  settings: { providerOptions: { anthropic: { thinking: { type: "adaptive" } } } },
+                }),
+              })
+            : model
         }
 
-        const p = createOpenAI({
+        // This adapter preserves reasoning_content through tool continuations.
+        const p = createOpenAICompatible({
+          name: "minimax",
           apiKey: providerCfg?.apiKey,
           baseURL: providerCfg?.openaiBaseURL ?? providerCfg?.baseURL ?? endpoints.openaiBaseURL,
+          includeUsage: true,
         })
-        return p.chat(resolvedModelId)
+        return p(resolvedModelId)
       }
 
       // OpenRouter's API is OpenAI-compatible — one @ai-sdk/openai
